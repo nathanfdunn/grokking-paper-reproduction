@@ -26,13 +26,13 @@ import time
 
 # Hyperparameters
 P = 97  # Prime modulus
-TRAIN_FRACTION = 0.5
+TRAIN_FRACTION = 0.2
 D_MODEL = 128
 N_HEADS = 4
 N_LAYERS = 2
 D_FF = 128 * 4  # Typical transformer uses 4x
 DROPOUT = 0.0  # Paper doesn't mention dropout for main experiments
-MAX_STEPS = 10_000
+MAX_STEPS = 100_000
 BATCH_SIZE = 512
 LR = 1e-3
 WEIGHT_DECAY = 1.0
@@ -359,22 +359,29 @@ def plot_results(history):
     ax1.legend()
     ax1.grid(True, alpha=0.3)
 
-    # Plot 2: Training Loss + Regularization Term vs Steps
+    # Plot 2: Training Loss + Regularization Term vs Steps (dual y-axis)
     ax2 = axes[0, 1]
     train_loss = np.array(history['train_loss'])
     weight_norm = np.array(history['weight_norm'])
     reg_term = WEIGHT_DECAY * weight_norm / 2  # AdamW regularization term
-    total_loss = train_loss + reg_term
 
     ax2.plot(steps, train_loss, label='Train Loss', color='red', alpha=0.8)
-    ax2.plot(steps, reg_term, label=f'Regularization (λ={WEIGHT_DECAY})', color='blue', alpha=0.8)
-    ax2.plot(steps, total_loss, label='Total (Loss + Reg)', color='purple', alpha=0.8, linestyle='--')
     ax2.set_xscale('log')
     ax2.set_xlabel('Optimization Steps')
-    ax2.set_ylabel('Loss')
+    ax2.set_ylabel('Train Loss', color='red')
+    ax2.tick_params(axis='y', labelcolor='red')
+
+    ax2_twin = ax2.twinx()
+    ax2_twin.plot(steps, reg_term, label=f'Regularization (λ={WEIGHT_DECAY})', color='blue', alpha=0.8)
+    ax2_twin.set_ylabel('Regularization Term', color='blue')
+    ax2_twin.tick_params(axis='y', labelcolor='blue')
+
     ax2.set_title('Training Loss + Regularization Term vs Steps')
-    ax2.legend()
     ax2.grid(True, alpha=0.3)
+    # Combine legends from both axes
+    lines1, labels1 = ax2.get_legend_handles_labels()
+    lines2, labels2 = ax2_twin.get_legend_handles_labels()
+    ax2.legend(lines1 + lines2, labels1 + labels2)
 
     # Plot 3: Training and Validation Accuracy vs Steps
     ax3 = axes[1, 0]
