@@ -32,7 +32,7 @@ N_HEADS = 4
 N_LAYERS = 2
 D_FF = 128 * 4  # Typical transformer uses 4x
 DROPOUT = 0.0  # Paper doesn't mention dropout for main experiments
-MAX_STEPS = 20_000
+MAX_STEPS = 50_000
 BATCH_SIZE = 512
 LR = 1e-3
 WEIGHT_DECAY = 1.0
@@ -345,10 +345,10 @@ def plot_results(history):
     """Create plots for training curves."""
     steps = history['step']
 
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
 
     # Plot 1: Training and Validation Loss vs Steps (log scale x-axis)
-    ax1 = axes[0, 0]
+    ax1 = axes[0]
     ax1.plot(steps, history['train_loss'], label='Train Loss', color='red', alpha=0.8)
     ax1.plot(steps, history['val_loss'], label='Val Loss', color='green', alpha=0.8)
     ax1.axhline(y=np.log(P), color='gray', linestyle='--', label=f'Chance level (ln {P})', alpha=0.5)
@@ -360,7 +360,7 @@ def plot_results(history):
     ax1.grid(True, alpha=0.3)
 
     # Plot 2: Training Loss + Regularization Term vs Steps (dual y-axis)
-    ax2 = axes[0, 1]
+    ax2 = axes[1]
     train_loss = np.array(history['train_loss'])
     weight_norm = np.array(history['weight_norm'])
     reg_term = WEIGHT_DECAY * weight_norm / 2  # AdamW regularization term
@@ -384,7 +384,7 @@ def plot_results(history):
     ax2.legend(lines1 + lines2, labels1 + labels2)
 
     # Plot 3: Training and Validation Accuracy vs Steps
-    ax3 = axes[1, 0]
+    ax3 = axes[2]
     ax3.plot(steps, history['train_acc'], label='Train Acc', color='red', alpha=0.8)
     ax3.plot(steps, history['val_acc'], label='Val Acc', color='green', alpha=0.8)
     ax3.axhline(y=100/P, color='gray', linestyle='--', label=f'Chance ({100/P:.1f}%)', alpha=0.5)
@@ -395,18 +395,6 @@ def plot_results(history):
     ax3.legend()
     ax3.grid(True, alpha=0.3)
     ax3.set_ylim([0, 105])
-
-    # Plot 4: Combined view like in the paper
-    ax4 = axes[1, 1]
-    ax4.plot(steps, history['train_acc'], label='Train Acc', color='red', alpha=0.8)
-    ax4.plot(steps, history['val_acc'], label='Val Acc', color='green', alpha=0.8)
-    ax4.set_xscale('log')
-    ax4.set_xlabel('Optimization Steps')
-    ax4.set_ylabel('Accuracy (%)')
-    ax4.set_title('Grokking: x + y mod 97 (50% training data)')
-    ax4.legend()
-    ax4.grid(True, alpha=0.3)
-    ax4.set_ylim([0, 105])
 
     plt.tight_layout()
     plt.savefig('grokking_results.png', dpi=150, bbox_inches='tight')
