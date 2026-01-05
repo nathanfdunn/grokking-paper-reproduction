@@ -69,14 +69,14 @@ class ModularAdditionDataset(Dataset):
 
 
 def create_datasets(p=P, train_fraction=TRAIN_FRACTION, seed=42):
-    """Create train/val splits for x + y mod p."""
+    """Create train/val splits for x^2 + y^2 mod p."""
     np.random.seed(seed)
 
     # Generate all equations
     all_data = []
     for x in range(p):
         for y in range(p):
-            result = (x + y) % p
+            result = (x*x + y*y) % p
             all_data.append((x, y, result))
 
     # Shuffle and split
@@ -402,101 +402,7 @@ def plot_results(history):
     print("Saved plots to grokking_results.png")
 
 
-def estimate_training_time():
-    """Estimate training time before running."""
-    print("=" * 60)
-    print("TRAINING TIME ESTIMATE")
-    print("=" * 60)
-
-    # Create a small test
-    train_dataset, val_dataset = create_datasets()
-    batch_size = min(BATCH_SIZE, len(train_dataset) // 2)
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-
-    vocab_size = P + 2
-    model = DecoderTransformer(
-        vocab_size=vocab_size,
-        d_model=D_MODEL,
-        n_heads=N_HEADS,
-        n_layers=N_LAYERS,
-        d_ff=D_FF,
-        dropout=DROPOUT
-    ).to(DEVICE)
-
-    optimizer = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
-
-    # Time a few batches
-    model.train()
-    n_warmup = 10
-    n_test = 50
-
-    train_iter = iter(train_loader)
-
-    # Warmup
-    for _ in range(n_warmup):
-        try:
-            inputs, targets = next(train_iter)
-        except StopIteration:
-            train_iter = iter(train_loader)
-            inputs, targets = next(train_iter)
-        inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
-        optimizer.zero_grad()
-        logits = model(inputs)
-        loss = F.cross_entropy(logits, targets)
-        loss.backward()
-        optimizer.step()
-
-    # Synchronize before timing
-    if DEVICE.type == 'cuda':
-        torch.cuda.synchronize()
-    elif DEVICE.type == 'mps':
-        torch.mps.synchronize()
-
-    # Timed run
-    start = time.time()
-    for _ in range(n_test):
-        try:
-            inputs, targets = next(train_iter)
-        except StopIteration:
-            train_iter = iter(train_loader)
-            inputs, targets = next(train_iter)
-        inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
-        optimizer.zero_grad()
-        logits = model(inputs)
-        loss = F.cross_entropy(logits, targets)
-        loss.backward()
-        optimizer.step()
-
-    if DEVICE.type == 'cuda':
-        torch.cuda.synchronize()
-    elif DEVICE.type == 'mps':
-        torch.mps.synchronize()
-
-    elapsed = time.time() - start
-    time_per_step = elapsed / n_test
-
-    # Account for logging overhead (roughly every LOG_INTERVAL steps we do full eval)
-    # Estimate: logging takes ~10x a regular step
-    n_logs = MAX_STEPS // LOG_INTERVAL
-    logging_overhead = n_logs * 10 * time_per_step
-
-    total_train_time = MAX_STEPS * time_per_step + logging_overhead
-
-    print(f"Device: {DEVICE}")
-    print(f"Model parameters: {count_parameters(model):,}")
-    print(f"Batch size: {batch_size}")
-    print(f"Training steps: {MAX_STEPS:,}")
-    print(f"Time per step: {time_per_step*1000:.2f} ms")
-    print(f"Estimated total time: {total_train_time/60:.1f} minutes")
-    print("=" * 60)
-
-    return total_train_time
-
-
 if __name__ == "__main__":
-    # First estimate training time
-    estimate_training_time()
-
     print("\nStarting training...")
     history, model = train()
 
